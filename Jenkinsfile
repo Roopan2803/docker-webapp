@@ -60,7 +60,7 @@ spec:
         stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
-                    sh "kubectl set image deployment/docker-webapp docker-webapp=${IMAGE_NAME}:${IMAGE_TAG} --record"
+                    sh "kubectl set image deployment/docker-webapp docker-webapp=${IMAGE_NAME}:${IMAGE_TAG} -n default --record"
                 }
             }
         }
