@@ -1,8 +1,32 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command:
+    - sleep
+    args:
+    - 9999999
+    volumeMounts:
+    - name: docker-config
+      mountPath: /kaniko/.docker
+  volumes:
+  - name: docker-config
+    secret:
+      secretName: dockerhub-secret
+      items:
+        - key: .dockerconfigjson
+          path: config.json
+"""
+        }
+    }
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
         IMAGE_NAME = 'roopan28/docker-webapp'
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
@@ -14,16 +38,15 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build and Push with Kaniko') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
-                sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                container('kaniko') {
+                    sh """
+                    /kaniko/executor --context `pwd` \
+                    --destination=${IMAGE_NAME}:${IMAGE_TAG} \
+                    --destination=${IMAGE_NAME}:latest
+                    """
+                }
             }
         }
 
