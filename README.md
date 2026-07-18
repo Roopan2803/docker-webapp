@@ -32,3 +32,18 @@ docker-compose down
 
 ## Result
 Web application accessible at http://localhost:8080
+
+## CI/CD Pipeline
+
+This app is now deployed automatically via a Jenkins pipeline running inside a Kubernetes cluster:
+
+**Flow:** `git push` → Jenkins detects the change → Kaniko builds the Docker image (no Docker daemon required, since Jenkins runs as a pod) → image pushed to Docker Hub → `kubectl` deploys the new image to the cluster
+
+See [Jenkinsfile](./Jenkinsfile) for the full pipeline definition.
+
+### Key challenges solved
+- **No Docker daemon inside Jenkins pods** — switched from `docker build` to [Kaniko](https://github.com/GoogleContainerTools/kaniko), which builds images without needing Docker itself
+- **No `kubectl` in the build environment** — added a dedicated `kubectl` container (`alpine/k8s`) to the pipeline's pod spec, since the Kaniko image only contains build tooling
+- **Deploy targeting wrong namespace** — Jenkins pods run in the `jenkins` namespace by default; explicitly specified `-n default` so `kubectl` updates the right Deployment
+
+Related project: [kubernetes-monitoring-stack](https://github.com/Roopan2803/kubernetes-monitoring-stack) — the cluster this app deploys to, complete with Prometheus/Grafana monitoring.
